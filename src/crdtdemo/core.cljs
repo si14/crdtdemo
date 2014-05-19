@@ -53,8 +53,10 @@
 
 (defn form-history-entry [history-entry]
   (case (first history-entry)
-    :query (let [[_ [query-type var]] history-entry]
-             (str (name query-type) " \"" var "\""))
+    :query (let [[_ srv [query-type var]] history-entry]
+             (if (= query-type :add)
+               (str  "add \"" var "\" to " (nth (name srv) 3))
+               (str  "remove \"" var "\" from " (nth (name srv) 3))))
     :gc "perform GC"
     :sync (let [[_ a b] history-entry]
             (str "sync " (name a) " and " (name b)))
@@ -128,10 +130,11 @@
         (go (loop []
               (let [msg (<! command-c)]
                 (match msg
-                 :query (let [query (rand-query)]
+                 :query (let [query (rand-query)
+                              srv (rand-srv)]
                           (om/transact! app :history
-                                        #(conj % [:query query]))
-                          (om/transact! app (rand-srv)
+                                        #(conj % [:query srv query]))
+                          (om/transact! app srv
                                         (partial make-query query)))
                  :gc (let [new-state (-> (set2p/merge (-> @app :srv1 :state)
                                                       (-> @app :srv2 :state))
